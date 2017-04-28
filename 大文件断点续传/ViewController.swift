@@ -23,7 +23,7 @@ class ViewController: UIViewController {
     fileprivate var resumeData: Data!
     fileprivate var currentTitle: String! {
         didSet {
-            downloadButton.setTitle(currentTitle, for: .normal)
+            downloadButton.setTitle(currentTitle, for: .normal) // currentTitle被赋值后，设置按钮的标题
         }
     }
     
@@ -58,9 +58,7 @@ class ViewController: UIViewController {
             task.cancel { (data) in
                 self.resumeData = data
             }
-            // 取消下载任务，调用这个方法后，将会调用didCompleteWithError代理方法
-            task.cancel()
-            
+
         case Constants.kResumeDownload:
             UIApplication.shared.isNetworkActivityIndicatorVisible = true
             currentTitle = Constants.kPauseDownload
