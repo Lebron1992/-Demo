@@ -18,19 +18,26 @@ class ViewController: UIViewController {
     @IBOutlet weak var downloadButton: UIButton!
     @IBOutlet weak var imageView: UIImageView!
     
-    private var session: URLSession!
+    private lazy var session: URLSession = {
+        // 创建会话相关配置
+        let config = URLSessionConfiguration.background(withIdentifier: Constants.kDownload)
+        // 在应用进入后台时，让系统决定决定是否在后台继续下载。如果是false，进入后台将暂停下载
+        config.isDiscretionary = true
+
+        // 创建一个可以在后台下载的session (其实会话的类型有四种形式)
+        let session = URLSession(configuration: config, delegate: self, delegateQueue: .main)
+        return session
+    }()
     private var task: URLSessionDownloadTask!
-    fileprivate var resumeData: Data!
-    fileprivate var currentTitle: String! {
+    private var resumeData: Data!
+    private var currentTitle: String! {
         didSet {
-            downloadButton.setTitle(currentTitle, for: .normal) // currentTitle被赋值后，设置按钮的标题
+            downloadButton.setTitle(currentTitle, for: .normal)
         }
     }
     
     override func viewDidLoad() {
         super.viewDidLoad()
-        // Do any additional setup after loading the view, typically from a nib.
-
     }
     
     @IBAction func startDownload(_ button: UIButton) {
@@ -38,15 +45,9 @@ class ViewController: UIViewController {
             
         case Constants.kStartDownload:
             currentTitle = Constants.kPauseDownload
+
             UIApplication.shared.isNetworkActivityIndicatorVisible = true
             
-            // 创建会话相关配置
-            let config = URLSessionConfiguration.background(withIdentifier: Constants.kDownload)
-            // 在应用进入后台时，让系统决定决定是否在后台继续下载。如果是false，进入后台将暂停下载
-            config.isDiscretionary = true
-            
-            // 创建一个可以在后台下载的session (其实会话的类型有四种形式)
-            session = URLSession(configuration: config, delegate: self, delegateQueue: .main)
             task = session.downloadTask(with: request)
             task.resume()
             
@@ -99,6 +100,7 @@ extension ViewController: URLSessionDownloadDelegate {
         }
         
         UIApplication.shared.isNetworkActivityIndicatorVisible = false
+
         imageView.image = UIImage(contentsOfFile: destination)
         currentTitle = Constants.kCompleteDownload
         // 在后台下载完成，重新进入前台，把progress设置为1.0；如果不设置，progress的值是进入后台之前的值
@@ -108,12 +110,12 @@ extension ViewController: URLSessionDownloadDelegate {
     
     // 任务完成时调用，但是不一定下载完成；用户点击暂停后，也会调用这个方法
     func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: Error?) {
-        if error != nil {
-            // 如果下载任务可以恢复，那么NSError的userInfo包含了NSURLSessionDownloadTaskResumeData键对应的数据，保存起来，继续下载要用到
-            if let data = (error as! NSError).userInfo[NSURLSessionDownloadTaskResumeData] as? Data {
-                resumeData =  data
-            }
+        // 如果下载任务可以恢复，那么NSError的userInfo包含了NSURLSessionDownloadTaskResumeData键对应的数据，保存起来，继续下载要用到
+        guard error != nil, let data = (error! as NSError).userInfo[NSURLSessionDownloadTaskResumeData] as? Data else {
+            return
         }
+
+        resumeData = data
     }
     
     func urlSession(_ session: URLSession, downloadTask: URLSessionDownloadTask, didResumeAtOffset fileOffset: Int64, expectedTotalBytes: Int64) {
@@ -128,4 +130,3 @@ private struct Constants {
     static let kResumeDownload = "继续下载"
     static let kCompleteDownload = "下载完成"
 }
-
